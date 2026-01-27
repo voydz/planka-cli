@@ -1,10 +1,6 @@
 version = 1
 revision = 3
-requires-python = ">=3.11"
-resolution-markers = [
-    "python_full_version >= '3.13'",
-    "python_full_version < '3.13'",
-]
+requires-python = ">=3.13"
 
 [[package]]
 name = "altgraph"
@@ -20,7 +16,7 @@ name = "anyio"
 version = "4.12.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "idna", marker = "python_full_version >= '3.13'" },
+    { name = "idna" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/96/f0/5eb65b2bb0d09ac6776f2eb54adee6abe8228ea05b20a5ad0e4945de8aac/anyio-4.12.1.tar.gz", hash = "sha256:41cfcc3a4c85d3f05c932da7c26d0201ac36f72abd4435ba90d0464a3ffed703", size = 228685, upload-time = "2026-01-06T11:45:21.246Z" }
 wheels = [
@@ -71,8 +67,8 @@ name = "httpcore"
 version = "1.0.9"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "certifi", marker = "python_full_version >= '3.13'" },
-    { name = "h11", marker = "python_full_version >= '3.13'" },
+    { name = "certifi" },
+    { name = "h11" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/06/94/82699a10bca87a5556c9c59b5963f2d039dbd239f25bc2a63907a05a14cb/httpcore-1.0.9.tar.gz", hash = "sha256:6e34463af53fd2ab5d807f399a9b45ea31c3dfa2276f15a2c3f00afff6e176e8", size = 85484, upload-time = "2025-04-24T22:06:22.219Z" }
 wheels = [
@@ -84,10 +80,10 @@ name = "httpx"
 version = "0.28.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "anyio", marker = "python_full_version >= '3.13'" },
-    { name = "certifi", marker = "python_full_version >= '3.13'" },
-    { name = "httpcore", marker = "python_full_version >= '3.13'" },
-    { name = "idna", marker = "python_full_version >= '3.13'" },
+    { name = "anyio" },
+    { name = "certifi" },
+    { name = "httpcore" },
+    { name = "idna" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/b1/df/48c586a5fe32a0f01324ee087459e112ebb7224f646c0b5023f5e79e9956/httpx-0.28.1.tar.gz", hash = "sha256:75e98c5f16b0f35b567856f597f06ff2270a374470a5c2392242528e3e3e42fc", size = 141406, upload-time = "2024-12-06T15:37:23.222Z" }
 wheels = [
@@ -159,8 +155,7 @@ name = "planka-cli"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
-    { name = "plankapy", version = "2.2.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.13'" },
-    { name = "plankapy", version = "2.3.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.13'" },
+    { name = "plankapy" },
     { name = "python-dotenv" },
     { name = "rich" },
     { name = "typer" },
@@ -173,7 +168,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "plankapy", specifier = ">=2.2.2" },
+    { name = "plankapy", specifier = ">=2.3.0" },
     { name = "python-dotenv" },
     { name = "rich" },
     { name = "typer" },
@@ -184,25 +179,10 @@ dev = [{ name = "pyinstaller" }]
 
 [[package]]
 name = "plankapy"
-version = "2.2.2"
-source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "python_full_version < '3.13'",
-]
-sdist = { url = "https://files.pythonhosted.org/packages/9b/57/29987afb2f9862b627a38648ee899e754b05de998cec386e1ca467f6efbd/plankapy-2.2.2.tar.gz", hash = "sha256:bd832f97f9e63e651946b4d1410ceb96c7cee1732cdddfe796ed60bf6404b6f3", size = 46442, upload-time = "2025-05-13T02:05:40.261Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/25/bd/e99f0185fe426186e57cdfee3e84ca863aec91e40b6209bff55045a42537/plankapy-2.2.2-py3-none-any.whl", hash = "sha256:bb8493ebf3c416e296dae3147ded72ea6cb772a419946015f864815c6345ebc4", size = 44780, upload-time = "2025-05-13T02:05:38.46Z" },
-]
-
-[[package]]
-name = "plankapy"
 version = "2.3.0"
 source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "python_full_version >= '3.13'",
-]
 dependencies = [
-    { name = "httpx", marker = "python_full_version >= '3.13'" },
+    { name = "httpx" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/d9/37/844c6e352aab7694881a0c3cef1b92d5c9bd3ff92147bef9e068e75c6026/plankapy-2.3.0.tar.gz", hash = "sha256:2c7bff9ee81db94094f92eab8c8f0b397b301e16a18eae36f816d222f5b98c3c", size = 111347, upload-time = "2026-01-27T00:11:43.117Z" }
 wheels = [

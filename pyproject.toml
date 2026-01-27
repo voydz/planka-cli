@@ -6,9 +6,9 @@ build-backend = "setuptools.build_meta"
 name = "planka-cli"
 version = "0.1.0"
 description = "CLI for Planka using plankapy."
-requires-python = ">=3.11"
+requires-python = ">=3.13"
 dependencies = [
-    "plankapy>=2.2.2",
+    "plankapy>=2.3.0",
     "typer",
     "python-dotenv",
     "rich",
