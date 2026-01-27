@@ -9,6 +9,7 @@ run:
 
 build:
 	uv run pyinstaller --onefile --name planka-cli --collect-all plankapy scripts/planka_cli.py
+	chmod +x dist/planka-cli
 
 smoke: build
 	@tmp_home="$$(mktemp -d)"; \
