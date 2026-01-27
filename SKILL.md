@@ -54,6 +54,9 @@ planka-cli lists list <BOARD_ID>
 # List Cards in a List
 planka-cli cards list <LIST_ID>
 
+# Show a Card (includes attachments with URLs and comment text)
+planka-cli cards show <CARD_ID>
+
 # Create a Card
 planka-cli cards create <LIST_ID> "Card title"
 
@@ -80,6 +83,11 @@ planka-cli boards list
 **Show cards in list ID 1619901252164912136:**
 ```bash
 planka-cli cards list 1619901252164912136
+```
+
+**Show card details for card ID 1619901252164912137:**
+```bash
+planka-cli cards show 1619901252164912137
 ```
 
 **Create a card in list ID 1619901252164912136:**

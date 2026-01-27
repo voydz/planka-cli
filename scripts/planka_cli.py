@@ -325,6 +325,183 @@ def list_cards(list_id: str):
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] {e}")
 
+@cards_app.command("show")
+def show_card(card_id: str):
+    """Show details for a card."""
+    planka = get_planka()
+    try:
+        card = get_card_by_id(planka, card_id)
+        if not card:
+            console.print(f"[red]Card {card_id} not found.[/red]")
+            return
+
+        table = make_table(f"Card: {card.name}")
+        table.add_column("Field", style="cyan", no_wrap=True)
+        table.add_column("Value", style="magenta")
+
+        def safe_attr(obj: object, name: str) -> object:
+            try:
+                return getattr(obj, name)
+            except Exception:
+                return None
+
+        def normalize_url(base_url: Optional[str], value: Optional[str]) -> Optional[str]:
+            if not value:
+                return None
+            candidate = str(value).strip()
+            if not candidate:
+                return None
+            if candidate.startswith("http://") or candidate.startswith("https://"):
+                return candidate
+            if base_url:
+                return f"{base_url.rstrip('/')}/{candidate.lstrip('/')}"
+            return candidate
+
+        def extract_attachment_url(attachment: object, base_url: Optional[str]) -> Optional[str]:
+            data = safe_attr(attachment, "data")
+            if isinstance(data, dict):
+                for key in ("url", "downloadUrl", "download_url", "link", "href", "path"):
+                    value = data.get(key)
+                    if isinstance(value, str) and value.strip():
+                        return normalize_url(base_url, value)
+                file_info = data.get("file")
+                if isinstance(file_info, dict):
+                    for key in (
+                        "url",
+                        "downloadUrl",
+                        "download_url",
+                        "path",
+                        "thumbnailUrl",
+                        "thumbUrl",
+                        "thumbnail_url",
+                    ):
+                        value = file_info.get(key)
+                        if isinstance(value, str) and value.strip():
+                            return normalize_url(base_url, value)
+            direct_url = safe_attr(attachment, "url")
+            if isinstance(direct_url, str) and direct_url.strip():
+                return normalize_url(base_url, direct_url)
+            return None
+
+        def add_row(label: str, value: object) -> None:
+            if value is None or value == "":
+                table.add_row(label, "-")
+            else:
+                table.add_row(label, str(value))
+
+        try:
+            schema = card.schema or {}
+        except Exception:
+            schema = {}
+        list_id_value = schema.get("listId")
+        list_name_value = None
+        list_obj = safe_attr(card, "list")
+        if list_obj is not None:
+            list_id_value = safe_attr(list_obj, "id") or list_id_value
+            list_name_value = safe_attr(list_obj, "name")
+
+        list_display = "-"
+        if list_name_value and list_id_value:
+            list_display = f"{list_name_value} ({list_id_value})"
+        elif list_name_value:
+            list_display = list_name_value
+        elif list_id_value:
+            list_display = list_id_value
+
+        due_date = safe_attr(card, "due_date") or schema.get("dueDate")
+        due_completed = safe_attr(card, "due_date_completed")
+        if due_completed is None:
+            due_completed = schema.get("isDueCompleted")
+        if isinstance(due_completed, bool):
+            due_completed = "yes" if due_completed else "no"
+
+        attachments_error = None
+        comments_error = None
+        try:
+            attachments = list(safe_attr(card, "attachments") or [])
+        except Exception as exc:
+            attachments = []
+            attachments_error = str(exc)
+        try:
+            comments = list(safe_attr(card, "comments") or [])
+        except Exception as exc:
+            comments = []
+            comments_error = str(exc)
+
+        comments_count = safe_attr(card, "comments_count")
+        if comments_count is None and comments_error is None:
+            comments_count = len(comments)
+
+        add_row("ID", card.id)
+        add_row("Name", card.name)
+        add_row("Description", safe_attr(card, "description") or schema.get("description"))
+        add_row("List", list_display)
+        add_row("Position", safe_attr(card, "position") or schema.get("position"))
+        add_row("Type", safe_attr(card, "type") or schema.get("type"))
+        add_row("Due Date", due_date)
+        add_row("Due Completed", due_completed)
+        if attachments_error:
+            add_row("Attachments", f"Error: {attachments_error}")
+        else:
+            add_row("Attachments", len(attachments))
+        if comments_error:
+            add_row("Comments", f"Error: {comments_error}")
+        else:
+            add_row("Comments", comments_count)
+        add_row("Created At", safe_attr(card, "created_at") or schema.get("createdAt"))
+        add_row("Updated At", safe_attr(card, "updated_at") or schema.get("updatedAt"))
+
+        console.print(table)
+
+        planka_url, _, _ = get_env_config()
+        if attachments and attachments_error is None:
+            attachments_table = make_table("Attachments")
+            attachments_table.add_column("ID", justify="right", style="cyan", no_wrap=True)
+            attachments_table.add_column("Name", style="magenta")
+            attachments_table.add_column("Type", style="magenta")
+            attachments_table.add_column("URL", style="magenta")
+            attachments_table.add_column("Created At", justify="right")
+
+            for attachment in attachments:
+                attachment_url = extract_attachment_url(attachment, planka_url)
+                attachments_table.add_row(
+                    str(safe_attr(attachment, "id") or "-"),
+                    str(safe_attr(attachment, "name") or "-"),
+                    str(safe_attr(attachment, "type") or "-"),
+                    str(attachment_url or "-"),
+                    str(safe_attr(attachment, "created_at") or "-"),
+                )
+
+            console.print(attachments_table)
+
+        if comments and comments_error is None:
+            comments_table = make_table("Comments")
+            comments_table.add_column("ID", justify="right", style="cyan", no_wrap=True)
+            comments_table.add_column("User", style="magenta")
+            comments_table.add_column("Text", style="magenta")
+            comments_table.add_column("Created At", justify="right")
+
+            for comment in comments:
+                user = safe_attr(comment, "user")
+                user_label = (
+                    safe_attr(user, "name")
+                    or safe_attr(user, "username")
+                    or safe_attr(user, "id")
+                    or "-"
+                )
+                text = safe_attr(comment, "text")
+                text_label = " ".join(str(text).split()) if text else "-"
+                comments_table.add_row(
+                    str(safe_attr(comment, "id") or "-"),
+                    str(user_label),
+                    text_label,
+                    str(safe_attr(comment, "created_at") or "-"),
+                )
+
+            console.print(comments_table)
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {e}")
+
 @cards_app.command("create")
 def create_card(
     list_id: str = typer.Argument(..., help="List ID to create the card in"),

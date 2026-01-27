@@ -69,6 +69,7 @@ planka-cli projects list
 planka-cli boards list [PROJECT_ID]
 planka-cli lists list <BOARD_ID>
 planka-cli cards list <LIST_ID>
+planka-cli cards show <CARD_ID>
 
 planka-cli cards create <LIST_ID> "Card title" --description "Details"
 planka-cli cards update <CARD_ID> --name "New title"

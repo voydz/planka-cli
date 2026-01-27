@@ -8,7 +8,7 @@ run:
 	uv run python scripts/planka_cli.py status
 
 build:
-	uv run pyinstaller --onefile --name planka-cli --collect-all plankapy scripts/planka_cli.py
+	uv run pyinstaller --onefile --name planka-cli --collect-all plankapy --collect-submodules rich._unicode_data scripts/planka_cli.py
 
 smoke: build
 	@set -e; \
