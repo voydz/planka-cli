@@ -1,4 +1,0 @@
-plankapy>=2.2.2
-typer
-python-dotenv
-rich
