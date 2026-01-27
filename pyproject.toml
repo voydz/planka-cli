@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "planka-cli"
+version = "0.1.0"
+description = "CLI for Planka using plankapy."
+requires-python = ">=3.10"
+dependencies = [
+    "plankapy",
+    "typer",
+    "python-dotenv",
+    "rich",
+]
+
+[project.scripts]
+planka-cli = "scripts.planka_cli:app"
+
+[dependency-groups]
+dev = [
+    "pyinstaller",
+]
+
+[tool.setuptools]
+packages = ["scripts"]
