@@ -15,17 +15,20 @@ jobs:
       HOMEBREW_GITHUB_API_TOKEN: ${{ secrets.HOMEBREW_GITHUB_API_TOKEN }}
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
         with:
-          python-version: "3.11"
-      - name: Install build dependencies
+          enable-cache: true
+      - name: Setup project
         run: |
-          python -m pip install --upgrade pip
-          pip install uv
+          uv python install 3.13
           make setup
       - name: Build binary
         run: |
           make build
+      - name: Smoke test binary
+        run: |
+          ./dist/planka-cli --help
       - name: Package tarball
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
