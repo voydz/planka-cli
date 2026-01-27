@@ -15,7 +15,7 @@ scan work, create cards, and stay on top of notifications with fast, scriptable 
 ## Quick start
 
 Requirements: A Planka account. For Homebrew installs, macOS + Homebrew. For source/pipx
-installs, Python 3.10+.
+installs, Python 3.11+.
 
 ### Install (Homebrew, recommended)
 

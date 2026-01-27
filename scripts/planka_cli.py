@@ -150,7 +150,6 @@ def get_planka() -> Planka:
         sys.exit(1)
     
     try:
-        # Initialize Planka client (v2) and authenticate
         planka = Planka(planka_url)
         planka.login(username=planka_username, password=planka_password)
         return planka

@@ -16,6 +16,8 @@ This skill provides a CLI wrapper around the `plankapy` library to interact with
     brew install planka-cli
     ```
 
+    Source/pipx installs require Python 3.11+ to use plankapy v2.
+
 2.  **Configuration:**
     Use the `login` command to store credentials:
     ```bash
