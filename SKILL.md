@@ -1,7 +1,7 @@
 ---
 name: planka
 description: Manage Planka (Kanban) projects, boards, lists, cards, and notifications via a custom Python CLI.
-metadata: {"clawdbot":{"emoji":"📋","requires":{"bins":["python3"],"env":["PLANKA_URL","PLANKA_USERNAME","PLANKA_PASSWORD"]}}}
+metadata: {"clawdbot":{"emoji":"📋","requires":{"bins":["planka-cli"]}}}
 ---
 
 # Planka CLI
@@ -10,16 +10,14 @@ This skill provides a CLI wrapper around the `plankapy` library to interact with
 
 ## Setup
 
-1.  **Dependencies:**
-    Navigate to the skill's scripts directory and install dependencies:
+1.  **Install via Homebrew tap:**
     ```bash
-    cd scripts/
-    pip install -r requirements.txt
+    brew tap voydz/homebrew-tap
+    brew install planka-cli
     ```
 
 2.  **Configuration:**
-    Use the `login` command to store credentials in a `.env` file next to the binary
-    (or next to `scripts/planka_cli.py` when running from source):
+    Use the `login` command to store credentials:
     ```bash
     planka-cli login --url https://planka.example --username alice --password secret
     # or: python3 scripts/planka_cli.py login --url https://planka.example --username alice --password secret
@@ -27,62 +25,77 @@ This skill provides a CLI wrapper around the `plankapy` library to interact with
 
 ## Usage
 
-Run the CLI using Python from the `scripts` directory (or referenced via absolute path):
+Run the CLI with the installed `planka-cli` binary:
 
 ```bash
-# Check connection
-python3 scripts/planka_cli.py status
+# Show help
+planka-cli
 
-# Save credentials next to the binary/script
-python3 scripts/planka_cli.py login --url https://planka.example --username alice --password secret
+# Check connection
+planka-cli status
+
+# Login to planka instance
+planka-cli login --url https://planka.example --username alice --password secret
 
 # Remove stored credentials
-python3 scripts/planka_cli.py logout
+planka-cli logout
 
 # List Projects
-python3 scripts/planka_cli.py projects list
+planka-cli projects list
 
 # List Boards (optionally by project ID)
-python3 scripts/planka_cli.py boards list [PROJECT_ID]
+planka-cli boards list [PROJECT_ID]
 
 # List Lists in a Board
-python3 scripts/planka_cli.py lists list <BOARD_ID>
+planka-cli lists list <BOARD_ID>
 
 # List Cards in a List
-python3 scripts/planka_cli.py cards list <LIST_ID>
+planka-cli cards list <LIST_ID>
 
 # Create a Card
-python3 scripts/planka_cli.py cards create <LIST_ID> "Card title"
+planka-cli cards create <LIST_ID> "Card title"
 
 # Update a Card
-python3 scripts/planka_cli.py cards update <CARD_ID> --name "New title"
+planka-cli cards update <CARD_ID> --name "New title"
+planka-cli cards update <CARD_ID> --list-id <LIST_ID>
+planka-cli cards update <CARD_ID> --list-id <LIST_ID> --position top
 
 # Delete a Card
-python3 scripts/planka_cli.py cards delete <CARD_ID>
+planka-cli cards delete <CARD_ID>
 
 # Notifications
-python3 scripts/planka_cli.py notifications all
-python3 scripts/planka_cli.py notifications unread
+planka-cli notifications all
+planka-cli notifications unread
 ```
 
 ## Examples
 
 **List all boards:**
 ```bash
-python3 scripts/planka_cli.py boards list
+planka-cli boards list
 ```
 
-**Show cards in list ID 42:**
+**Show cards in list ID 1619901252164912136:**
 ```bash
-python3 scripts/planka_cli.py cards list 42
+planka-cli cards list 1619901252164912136
 ```
 
-**Create a card in list ID 42:**
+**Create a card in list ID 1619901252164912136:**
 ```bash
-python3 scripts/planka_cli.py cards create 42 "Ship CLI"
+planka-cli cards create 1619901252164912136 "Ship CLI"
+```
+
+**Move a card to another list:**
+```bash
+planka-cli cards update 1619901252164912137 --list-id 1619901252164912136
+```
+
+**Move a card to another list and pin it to the top:**
+```bash
+planka-cli cards update 1619901252164912137 --list-id 1619901252164912136 --position top
 ```
 
 **Mark a card done by updating its name:**
 ```bash
-python3 scripts/planka_cli.py cards update <CARD_ID> --name "Done: Ship CLI"
+planka-cli cards update 1619901252164912137 --name "Done: Ship CLI"
 ```

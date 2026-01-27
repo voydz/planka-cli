@@ -52,6 +52,12 @@ app.add_typer(lists_app, name="lists")
 app.add_typer(cards_app, name="cards")
 app.add_typer(notifications_app, name="notifications")
 
+@app.callback(invoke_without_command=True)
+def main(ctx: typer.Context):
+    """Planka CLI."""
+    if ctx.invoked_subcommand is None:
+        click.echo(ctx.get_help())
+
 def get_env_config() -> tuple[Optional[str], Optional[str], Optional[str]]:
     return (
         os.getenv("PLANKA_URL"),

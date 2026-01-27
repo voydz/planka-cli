@@ -47,7 +47,7 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           brew tap voydz/homebrew-tap
-          brew bump-formula-pr --tap voydz/homebrew-tap planka-cli \
+          brew bump-formula-pr planka-cli \
             --url "$URL" \
             --sha256 "$SHA256" \
             --version "$VERSION"
