@@ -28,5 +28,4 @@ htmlcov/
 .idea/
 .DS_Store
 
-# PyInstaller
-*.spec
+# PyInstaller (planka-cli.spec is committed for reproducible builds)

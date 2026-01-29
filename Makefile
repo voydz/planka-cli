@@ -8,7 +8,7 @@ run:
 	uv run python scripts/planka_cli.py status
 
 build:
-	uv run pyinstaller --onefile --name planka-cli --collect-all plankapy --collect-submodules rich._unicode_data scripts/planka_cli.py
+	uv run pyinstaller planka-cli.spec --noconfirm
 
 smoke: build
 	@set -e; \
@@ -21,4 +21,4 @@ smoke: build
 		./dist/planka-cli --help
 
 clean:
-	rm -rf dist build *.spec __pycache__ scripts/__pycache__
+	rm -rf dist build __pycache__ scripts/__pycache__
