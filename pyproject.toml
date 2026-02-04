@@ -20,7 +20,21 @@ planka-cli = "scripts.planka_cli:app"
 [dependency-groups]
 dev = [
     "pyinstaller",
+    "ruff",
+    "pytest",
 ]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
+ignore = ["E501"]  # Line too long - handled by formatter
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
 
 [tool.setuptools]
 packages = ["scripts"]

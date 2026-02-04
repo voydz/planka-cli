@@ -1,4 +1,4 @@
-.PHONY: setup run build smoke clean
+.PHONY: setup run build smoke clean lint test
 
 setup:
 	uv venv
@@ -6,6 +6,17 @@ setup:
 
 run:
 	uv run python scripts/planka_cli.py status
+
+lint:
+	uv run ruff check scripts/ tests/
+	uv run ruff format --check scripts/ tests/
+
+lint-fix:
+	uv run ruff check --fix scripts/ tests/
+	uv run ruff format scripts/ tests/
+
+test:
+	uv run pytest tests/ -v
 
 build:
 	uv run pyinstaller planka-cli.spec --noconfirm
@@ -21,4 +32,4 @@ smoke: build
 		./dist/planka-cli --help
 
 clean:
-	rm -rf dist build __pycache__ scripts/__pycache__
+	rm -rf dist build __pycache__ scripts/__pycache__ tests/__pycache__ .pytest_cache

@@ -13,6 +13,7 @@ from rich.console import Console
 from rich.table import Table
 from typer.core import TyperGroup
 
+
 def get_binary_dir() -> Path:
     argv0 = sys.argv[0]
     path = Path(argv0)
@@ -29,6 +30,7 @@ ENV_PATH = get_binary_dir() / ".env"
 
 # Load environment variables from the .env next to the binary/script.
 load_dotenv(dotenv_path=ENV_PATH)
+
 
 class HelpOnUnknownCommandGroup(TyperGroup):
     def get_command(self, ctx: click.Context, cmd_name: str):
@@ -52,11 +54,13 @@ app.add_typer(lists_app, name="lists")
 app.add_typer(cards_app, name="cards")
 app.add_typer(notifications_app, name="notifications")
 
+
 @app.callback(invoke_without_command=True)
 def main(ctx: typer.Context):
     """Planka CLI."""
     if ctx.invoked_subcommand is None:
         click.echo(ctx.get_help())
+
 
 def get_env_config() -> tuple[Optional[str], Optional[str], Optional[str]]:
     return (
@@ -64,6 +68,7 @@ def get_env_config() -> tuple[Optional[str], Optional[str], Optional[str]]:
         os.getenv("PLANKA_USERNAME"),
         os.getenv("PLANKA_PASSWORD"),
     )
+
 
 def parse_iso_datetime(value: Optional[str]) -> Optional[datetime]:
     if value is None:
@@ -78,6 +83,7 @@ def parse_iso_datetime(value: Optional[str]) -> Optional[datetime]:
             "Invalid datetime. Use ISO-8601 like 2025-01-31 or 2025-01-31T10:30:00Z."
         ) from exc
 
+
 def parse_position(value: Optional[str]) -> Optional[Union[str, int]]:
     if value is None:
         return None
@@ -89,6 +95,7 @@ def parse_position(value: Optional[str]) -> Optional[Union[str, int]]:
     except ValueError as exc:
         raise typer.BadParameter("Position must be 'top', 'bottom', or an integer.") from exc
 
+
 def find_list(planka: Planka, list_id: str):
     for project in planka.projects:
         for board in project.boards:
@@ -97,12 +104,24 @@ def find_list(planka: Planka, list_id: str):
                     return list_item
     return None
 
+
+def find_list_with_board(planka: Planka, list_id: str):
+    """Find a list and return both the list and its parent board."""
+    for project in planka.projects:
+        for board in project.boards:
+            for list_item in board.lists:
+                if list_item.id == list_id:
+                    return list_item, board
+    return None, None
+
+
 def get_card_by_id(planka: Planka, card_id: str) -> Optional[Card]:
     try:
         card_data = planka.endpoints.getCard(card_id)["item"]
     except Exception:
         return None
     return Card(card_data, planka)
+
 
 def make_table(title: str) -> Table:
     return Table(
@@ -113,6 +132,7 @@ def make_table(title: str) -> Table:
         show_lines=False,
         box=None,
     )
+
 
 def render_notifications(title: str, notifications: list) -> None:
     if not notifications:
@@ -138,6 +158,7 @@ def render_notifications(title: str, notifications: list) -> None:
 
     console.print(table)
 
+
 def get_planka() -> Planka:
     planka_url, planka_username, planka_password = get_env_config()
     if not planka_url or not planka_username or not planka_password:
@@ -148,7 +169,7 @@ def get_planka() -> Planka:
             f"to write {ENV_PATH}."
         )
         sys.exit(1)
-    
+
     try:
         planka = Planka(planka_url)
         planka.login(username=planka_username, password=planka_password)
@@ -156,6 +177,7 @@ def get_planka() -> Planka:
     except Exception as e:
         console.print(f"[bold red]Connection Error:[/bold red] {e}")
         sys.exit(1)
+
 
 @app.command()
 def login(
@@ -180,6 +202,7 @@ def login(
 
     console.print(f"[green]Saved credentials to[/green] {ENV_PATH}")
 
+
 @app.command()
 def logout():
     """Delete the stored .env file next to the binary."""
@@ -195,18 +218,22 @@ def logout():
 
     console.print("[green]Logged out.[/green] Removed stored credentials.")
 
+
 @app.command()
 def status():
     """Check connection and print current user info."""
     planka = get_planka()
     try:
         user = planka.me
-        console.print(f"[green]Connected![/green] Logged in as: [bold]{user.username}[/bold] (ID: {user.id})")
+        console.print(
+            f"[green]Connected![/green] Logged in as: [bold]{user.username}[/bold] (ID: {user.id})"
+        )
         if user.name:
             console.print(f"Name: {user.name}")
         console.print(f"Email: {user.email}")
     except Exception as e:
         console.print(f"[bold red]Error fetching status:[/bold red] {e}")
+
 
 @projects_app.command("list")
 def list_projects():
@@ -230,8 +257,11 @@ def list_projects():
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] {e}")
 
+
 @boards_app.command("list")
-def list_boards(project_id: Optional[str] = typer.Argument(None, help="Project ID to filter by")):
+def list_boards(
+    project_id: Optional[str] = typer.Argument(None, help="Project ID to filter by"),
+):
     """List boards. Optionally filter by Project ID."""
     planka = get_planka()
     try:
@@ -255,18 +285,24 @@ def list_boards(project_id: Optional[str] = typer.Argument(None, help="Project I
             console.print("No boards found.")
             return
 
+        planka_url, _, _ = get_env_config()
         table = make_table(title)
         table.add_column("ID", justify="right", style="cyan", no_wrap=True)
         table.add_column("Name", style="magenta")
         table.add_column("Project ID", justify="right")
+        table.add_column("URL", style="magenta")
 
         for b in boards_list:
             project_id_value = b.schema.get("projectId")
-            table.add_row(str(b.id), b.name, str(project_id_value))
+            board_url = None
+            if planka_url and b.id:
+                board_url = f"{planka_url.rstrip('/')}/boards/{b.id}"
+            table.add_row(str(b.id), b.name, str(project_id_value), str(board_url or "-"))
 
         console.print(table)
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] {e}")
+
 
 @lists_app.command("list")
 def list_lists(board_id: str):
@@ -283,7 +319,7 @@ def list_lists(board_id: str):
                     break
             if target_board:
                 break
-        
+
         if not target_board:
             console.print(f"[red]Board {board_id} not found.[/red]")
             return
@@ -291,39 +327,51 @@ def list_lists(board_id: str):
         table = make_table(f"Lists in Board: {target_board.name}")
         table.add_column("ID", justify="right", style="cyan", no_wrap=True)
         table.add_column("Name", style="magenta")
+        table.add_column("Board ID", justify="right")
         table.add_column("Position", justify="right")
 
-        for l in target_board.lists:
-            table.add_row(str(l.id), l.name, str(l.position))
+        for list_item in target_board.lists:
+            table.add_row(
+                str(list_item.id), list_item.name, str(target_board.id), str(list_item.position)
+            )
 
         console.print(table)
 
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] {e}")
+
 
 @cards_app.command("list")
 def list_cards(list_id: str):
     """List all cards in a list."""
     planka = get_planka()
     try:
-        target_list = find_list(planka, list_id)
-        
+        target_list, target_board = find_list_with_board(planka, list_id)
+
         if not target_list:
             console.print(f"[red]List {list_id} not found.[/red]")
             return
 
+        planka_url, _, _ = get_env_config()
+        board_id = target_board.id if target_board else None
         table = make_table(f"Cards in List: {target_list.name}")
         table.add_column("ID", justify="right", style="cyan", no_wrap=True)
         table.add_column("Name", style="magenta")
+        table.add_column("List ID", justify="right")
         table.add_column("Position", justify="right")
+        table.add_column("URL", style="magenta")
 
         for c in target_list.cards:
-            table.add_row(str(c.id), c.name, str(c.position))
+            card_url = None
+            if planka_url and board_id and c.id:
+                card_url = f"{planka_url.rstrip('/')}/boards/{board_id}/cards/{c.id}"
+            table.add_row(str(c.id), c.name, str(list_id), str(c.position), str(card_url or "-"))
 
         console.print(table)
 
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] {e}")
+
 
 @cards_app.command("show")
 def show_card(card_id: str):
@@ -360,7 +408,14 @@ def show_card(card_id: str):
         def extract_attachment_url(attachment: object, base_url: Optional[str]) -> Optional[str]:
             data = safe_attr(attachment, "data")
             if isinstance(data, dict):
-                for key in ("url", "downloadUrl", "download_url", "link", "href", "path"):
+                for key in (
+                    "url",
+                    "downloadUrl",
+                    "download_url",
+                    "link",
+                    "href",
+                    "path",
+                ):
                     value = data.get(key)
                     if isinstance(value, str) and value.strip():
                         return normalize_url(base_url, value)
@@ -394,11 +449,16 @@ def show_card(card_id: str):
         except Exception:
             schema = {}
         list_id_value = schema.get("listId")
+        board_id_value = schema.get("boardId")
         list_name_value = None
         list_obj = safe_attr(card, "list")
         if list_obj is not None:
             list_id_value = safe_attr(list_obj, "id") or list_id_value
             list_name_value = safe_attr(list_obj, "name")
+            if not board_id_value:
+                list_schema = safe_attr(list_obj, "schema")
+                if isinstance(list_schema, dict):
+                    board_id_value = list_schema.get("boardId")
 
         list_display = "-"
         if list_name_value and list_id_value:
@@ -432,9 +492,16 @@ def show_card(card_id: str):
         if comments_count is None and comments_error is None:
             comments_count = len(comments)
 
+        planka_url, _, _ = get_env_config()
+        card_url = None
+        if planka_url and board_id_value and card.id:
+            card_url = f"{planka_url.rstrip('/')}/boards/{board_id_value}/cards/{card.id}"
+
         add_row("ID", card.id)
+        add_row("URL", card_url)
         add_row("Name", card.name)
         add_row("Description", safe_attr(card, "description") or schema.get("description"))
+        add_row("Board ID", board_id_value)
         add_row("List", list_display)
         add_row("Position", safe_attr(card, "position") or schema.get("position"))
         add_row("Type", safe_attr(card, "type") or schema.get("type"))
@@ -453,7 +520,6 @@ def show_card(card_id: str):
 
         console.print(table)
 
-        planka_url, _, _ = get_env_config()
         if attachments and attachments_error is None:
             attachments_table = make_table("Attachments")
             attachments_table.add_column("ID", justify="right", style="cyan", no_wrap=True)
@@ -502,12 +568,15 @@ def show_card(card_id: str):
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] {e}")
 
+
 @cards_app.command("create")
 def create_card(
     list_id: str = typer.Argument(..., help="List ID to create the card in"),
     name: str = typer.Argument(..., help="Card name/title"),
     description: Optional[str] = typer.Option(None, "--description", "-d", help="Card description"),
-    position: str = typer.Option("bottom", "--position", "-p", help="Position: top, bottom, or integer"),
+    position: str = typer.Option(
+        "bottom", "--position", "-p", help="Position: top, bottom, or integer"
+    ),
     card_type: str = typer.Option("project", "--type", "-t", help="Card type (project, story)"),
     due_date: Optional[str] = typer.Option(None, "--due-date", help="Due date (ISO-8601)"),
     due_completed: bool = typer.Option(False, "--due-completed", help="Mark due date as completed"),
@@ -539,15 +608,24 @@ def create_card(
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] {e}")
 
+
 @cards_app.command("update")
 def update_card(
     card_id: str = typer.Argument(..., help="Card ID to update"),
     name: Optional[str] = typer.Option(None, "--name", help="New card name"),
-    description: Optional[str] = typer.Option(None, "--description", "-d", help="New card description"),
-    clear_description: bool = typer.Option(False, "--clear-description", help="Clear the description"),
-    position: Optional[str] = typer.Option(None, "--position", "-p", help="Position: top, bottom, or integer"),
+    description: Optional[str] = typer.Option(
+        None, "--description", "-d", help="New card description"
+    ),
+    clear_description: bool = typer.Option(
+        False, "--clear-description", help="Clear the description"
+    ),
+    position: Optional[str] = typer.Option(
+        None, "--position", "-p", help="Position: top, bottom, or integer"
+    ),
     list_id: Optional[str] = typer.Option(None, "--list-id", help="Move to a new list"),
-    card_type: Optional[str] = typer.Option(None, "--type", "-t", help="Card type (project, story)"),
+    card_type: Optional[str] = typer.Option(
+        None, "--type", "-t", help="Card type (project, story)"
+    ),
     due_date: Optional[str] = typer.Option(None, "--due-date", help="Due date (ISO-8601)"),
     clear_due_date: bool = typer.Option(False, "--clear-due-date", help="Clear the due date"),
     due_completed: Optional[bool] = typer.Option(
@@ -558,7 +636,9 @@ def update_card(
 ):
     """Update an existing card."""
     if description is not None and clear_description:
-        console.print("[bold red]Error:[/bold red] Use either --description or --clear-description.")
+        console.print(
+            "[bold red]Error:[/bold red] Use either --description or --clear-description."
+        )
         raise typer.Exit(1)
     if due_date is not None and clear_due_date:
         console.print("[bold red]Error:[/bold red] Use either --due-date or --clear-due-date.")
@@ -606,6 +686,7 @@ def update_card(
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] {e}")
 
+
 @cards_app.command("delete")
 def delete_card(
     card_id: str = typer.Argument(..., help="Card ID to delete"),
@@ -630,6 +711,7 @@ def delete_card(
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] {e}")
 
+
 @notifications_app.command("all")
 def all_notifications():
     """List all notifications."""
@@ -639,6 +721,7 @@ def all_notifications():
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] {e}")
 
+
 @notifications_app.command("unread")
 def unread_notifications():
     """List unread notifications."""
@@ -647,6 +730,7 @@ def unread_notifications():
         render_notifications("Unread Notifications", planka.unread_notifications)
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] {e}")
+
 
 if __name__ == "__main__":
     app()
