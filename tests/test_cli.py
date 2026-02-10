@@ -66,10 +66,7 @@ class TestLoginLogout:
 
     def test_logout_without_credentials(self, tmp_path, monkeypatch):
         """Logout without stored credentials should be graceful."""
-        # Point ENV_PATH to a temp location
-        import scripts.planka_cli as cli_module
-
-        monkeypatch.setattr(cli_module, "ENV_PATH", tmp_path / ".env")
+        monkeypatch.setenv("PLANKATOKENS", str(tmp_path))
         result = runner.invoke(app, ["logout"])
         assert result.exit_code == 0
         assert "No stored credentials" in result.output

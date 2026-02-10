@@ -1,4 +1,6 @@
-.PHONY: setup run build smoke clean lint test
+.PHONY: setup run build smoke clean lint lint-fix test check
+
+.DEFAULT_GOAL := check
 
 setup:
 	uv venv
@@ -17,6 +19,8 @@ lint-fix:
 
 test:
 	uv run pytest tests/ -v
+
+check: lint test
 
 build:
 	uv run pyinstaller planka-cli.spec --noconfirm

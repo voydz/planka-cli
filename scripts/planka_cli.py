@@ -1,3 +1,4 @@
+import json
 import os
 import shutil
 import sys
@@ -7,29 +8,15 @@ from typing import Optional, Union
 
 import click
 import typer
-from dotenv import load_dotenv, set_key
 from plankapy.v2 import Card, Planka
 from rich.console import Console
 from rich.table import Table
 from typer.core import TyperGroup
 
-
-def get_binary_dir() -> Path:
-    argv0 = sys.argv[0]
-    path = Path(argv0)
-    if not path.is_absolute():
-        resolved = shutil.which(argv0)
-        if resolved:
-            path = Path(resolved)
-    if path.exists():
-        return path.resolve().parent if path.is_file() else path.resolve()
-    return Path(__file__).resolve().parent
-
-
-ENV_PATH = get_binary_dir() / ".env"
-
-# Load environment variables from the .env next to the binary/script.
-load_dotenv(dotenv_path=ENV_PATH)
+TOKEN_ENV_VAR = "PLANKATOKENS"
+DEFAULT_TOKEN_DIR = Path.home() / ".config" / "planka-cli" / "tokens"
+CREDENTIALS_FILENAME = "credentials.json"
+TOKENSTORE_OVERRIDE: Optional[str] = None
 
 
 class HelpOnUnknownCommandGroup(TyperGroup):
@@ -56,18 +43,68 @@ app.add_typer(notifications_app, name="notifications")
 
 
 @app.callback(invoke_without_command=True)
-def main(ctx: typer.Context):
+def main(
+    ctx: typer.Context,
+    tokenstore: Optional[str] = typer.Option(None, "--tokenstore", help="Token storage path."),
+):
     """Planka CLI."""
+    global TOKENSTORE_OVERRIDE
+    TOKENSTORE_OVERRIDE = tokenstore
     if ctx.invoked_subcommand is None:
         click.echo(ctx.get_help())
 
 
+def get_token_dir(tokenstore: Optional[str] = None) -> Path:
+    if tokenstore:
+        return Path(tokenstore).expanduser().resolve()
+    if TOKENSTORE_OVERRIDE:
+        return Path(TOKENSTORE_OVERRIDE).expanduser().resolve()
+    env = os.environ.get(TOKEN_ENV_VAR)
+    if env:
+        return Path(env).expanduser().resolve()
+    return DEFAULT_TOKEN_DIR
+
+
+def get_credentials_path(tokenstore: Optional[str] = None) -> Path:
+    return get_token_dir(tokenstore) / CREDENTIALS_FILENAME
+
+
+def load_stored_credentials(tokenstore: Optional[str] = None) -> dict[str, str]:
+    credentials_path = get_credentials_path(tokenstore)
+    if not credentials_path.exists():
+        return {}
+    try:
+        data = json.loads(credentials_path.read_text())
+    except json.JSONDecodeError as exc:
+        console.print(
+            f"[bold red]Error:[/bold red] Invalid credentials file at {credentials_path}: {exc}"
+        )
+        raise typer.Exit(1) from exc
+    if not isinstance(data, dict):
+        console.print(
+            f"[bold red]Error:[/bold red] Credentials file at {credentials_path} must be a JSON object."
+        )
+        raise typer.Exit(1)
+    return {str(key): str(value) for key, value in data.items()}
+
+
 def get_env_config() -> tuple[Optional[str], Optional[str], Optional[str]]:
-    return (
-        os.getenv("PLANKA_URL"),
-        os.getenv("PLANKA_USERNAME"),
-        os.getenv("PLANKA_PASSWORD"),
-    )
+    planka_url = os.getenv("PLANKA_URL")
+    planka_username = os.getenv("PLANKA_USERNAME")
+    planka_password = os.getenv("PLANKA_PASSWORD")
+
+    if planka_url and planka_username and planka_password:
+        return planka_url, planka_username, planka_password
+
+    stored = load_stored_credentials()
+    if not planka_url:
+        planka_url = stored.get("PLANKA_URL")
+    if not planka_username:
+        planka_username = stored.get("PLANKA_USERNAME")
+    if not planka_password:
+        planka_password = stored.get("PLANKA_PASSWORD")
+
+    return planka_url, planka_username, planka_password
 
 
 def parse_iso_datetime(value: Optional[str]) -> Optional[datetime]:
@@ -162,11 +199,12 @@ def render_notifications(title: str, notifications: list) -> None:
 def get_planka() -> Planka:
     planka_url, planka_username, planka_password = get_env_config()
     if not planka_url or not planka_username or not planka_password:
+        credentials_path = get_credentials_path()
         console.print(
             "[bold red]Error:[/bold red] Missing credentials. "
             f"Set PLANKA_URL, PLANKA_USERNAME, and PLANKA_PASSWORD or run "
             f"`planka-cli login --url ... --username ... --password ...` "
-            f"to write {ENV_PATH}."
+            f"to write {credentials_path}."
         )
         sys.exit(1)
 
@@ -185,35 +223,46 @@ def login(
     username: str = typer.Option(..., "--username", "-n", help="Planka username"),
     password: str = typer.Option(..., "--password", "-p", help="Planka password"),
 ):
-    """Store credentials in a .env file next to the binary."""
+    """Store credentials in ~/.config/planka-cli/tokens/credentials.json."""
+    credentials_path = get_credentials_path()
     try:
-        ENV_PATH.parent.mkdir(parents=True, exist_ok=True)
-        set_key(str(ENV_PATH), "PLANKA_URL", url)
-        set_key(str(ENV_PATH), "PLANKA_USERNAME", username)
-        set_key(str(ENV_PATH), "PLANKA_PASSWORD", password)
+        credentials_path.parent.mkdir(parents=True, exist_ok=True)
+        credentials_path.write_text(
+            json.dumps(
+                {
+                    "PLANKA_URL": url,
+                    "PLANKA_USERNAME": username,
+                    "PLANKA_PASSWORD": password,
+                },
+                indent=2,
+            )
+            + "\n"
+        )
     except OSError as e:
-        console.print(f"[bold red]Error:[/bold red] Could not write {ENV_PATH}: {e}")
+        console.print(f"[bold red]Error:[/bold red] Could not write {credentials_path}: {e}")
         raise typer.Exit(1)
 
     try:
-        os.chmod(ENV_PATH, 0o600)
+        os.chmod(credentials_path, 0o600)
     except OSError:
         pass
 
-    console.print(f"[green]Saved credentials to[/green] {ENV_PATH}")
+    console.print(f"[green]Saved credentials to[/green] {credentials_path}")
 
 
 @app.command()
 def logout():
-    """Delete the stored .env file next to the binary."""
-    if not ENV_PATH.exists():
-        console.print(f"No stored credentials found at {ENV_PATH}")
+    """Delete the stored ~/.config/planka-cli/tokens/credentials.json file."""
+    token_dir = get_token_dir()
+    credentials_path = get_credentials_path()
+    if not credentials_path.exists():
+        console.print(f"No stored credentials found at {credentials_path}")
         return
 
     try:
-        ENV_PATH.unlink()
+        shutil.rmtree(token_dir)
     except OSError as e:
-        console.print(f"[bold red]Error:[/bold red] Could not delete {ENV_PATH}: {e}")
+        console.print(f"[bold red]Error:[/bold red] Could not delete {credentials_path}: {e}")
         raise typer.Exit(1)
 
     console.print("[green]Logged out.[/green] Removed stored credentials.")

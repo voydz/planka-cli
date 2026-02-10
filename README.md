@@ -47,9 +47,10 @@ planka-cli boards list
 
 ## Authentication
 
-`login` stores credentials in a `.env` file next to the `planka-cli` binary (or next to
-`scripts/planka_cli.py` when running from source). You can also set credentials via
-environment variables:
+`login` stores credentials in `~/.config/planka-cli/tokens/credentials.json` by default.
+Override with `--tokenstore PATH` or the `PLANKATOKENS` environment variable. You can also
+set credentials via environment variables. Note: `--tokenstore` is a global option and
+must appear before the command name.
 
 ```bash
 export PLANKA_URL=https://planka.example
@@ -103,6 +104,9 @@ pip install -e .
 ```bash
 make setup
 make run
+make lint
+make test
+make check
 make build
 ```
 

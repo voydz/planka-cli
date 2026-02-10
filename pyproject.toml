@@ -10,7 +10,6 @@ requires-python = ">=3.11"
 dependencies = [
     "plankapy>=2.2.2",
     "typer",
-    "python-dotenv",
     "rich",
 ]
 
