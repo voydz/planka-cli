@@ -10,12 +10,13 @@ This skill provides a CLI wrapper around the `plankapy` library to interact with
 
 ## Setup
 
-1.  **Install via Homebrew tap:**
+1.  **Install via Homebrew tap (macOS or Linux):**
     ```bash
     brew tap voydz/homebrew-tap
     brew install planka-cli
     ```
 
+    Prebuilt binaries are published for macOS (arm64, x86_64) and Linux (x86_64, arm64).
     Source/pipx installs require Python 3.11+ to use plankapy v2.
 
 2.  **Configuration:**

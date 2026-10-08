@@ -14,8 +14,8 @@ scan work, create cards, and stay on top of notifications with fast, scriptable 
 
 ## Quick start
 
-Requirements: A Planka account. For Homebrew installs, macOS + Homebrew. For source/pipx
-installs, Python 3.11+.
+Requirements: A Planka account. For Homebrew installs, macOS (Apple Silicon or Intel) or
+Linux (x86_64 or arm64, glibc 2.28+) with Homebrew. For source/pipx installs, Python 3.11+.
 
 ### Install (Homebrew, recommended)
 
@@ -23,6 +23,11 @@ installs, Python 3.11+.
 brew tap voydz/homebrew-tap
 brew install planka-cli
 ```
+
+Prebuilt binaries are also attached to each
+[GitHub release](https://github.com/voydz/planka-cli/releases) as
+`planka-cli-<version>-<os>-<arch>.tar.gz` for `macos-arm64`, `macos-x86_64`, `linux-x86_64`
+and `linux-arm64`.
 
 ### Install (other options)
 
@@ -82,8 +87,6 @@ planka-cli notifications unread
 
 ## Maintainers
 
-Developer docs live in `docs/`. Release automation notes are in `docs/tap-automation.md`.
-
 ### Local dev
 
 ```bash
@@ -95,9 +98,11 @@ pip install -e .
 ### Project layout
 
 - `scripts/planka_cli.py` CLI entrypoint
-- `docs/` supporting documentation
+- `scripts/pyi_rth_plankapy.py` PyInstaller runtime hook
+- `planka-cli.spec` PyInstaller spec (committed for reproducible builds)
+- `packaging/planka-cli.rb.tmpl` Homebrew formula template, rendered by the release workflow
 - `pyproject.toml` packaging metadata
-- `Makefile` helpers for setup and binary builds
+- `Makefile` helpers for setup, binary builds and packaging
 
 ### Development
 
@@ -107,11 +112,31 @@ make run
 make lint
 make test
 make check
-make build
+make build     # PyInstaller binary in dist/planka-cli
+make smoke     # build + run --help in a clean environment
+make package   # build + dist/planka-cli-<version>-<os>-<arch>.tar.gz (+ .sha256)
 ```
+
+### Release
+
+PyInstaller cannot cross-compile, so the release workflow (`.github/workflows/release.yml`)
+builds the binary on one runner per target when a GitHub release is published:
+
+| Target         | Runner                                        |
+| -------------- | --------------------------------------------- |
+| `macos-arm64`  | `macos-14`                                    |
+| `macos-x86_64` | `macos-15-intel`                              |
+| `linux-x86_64` | `quay.io/pypa/manylinux_2_28_x86_64` container |
+| `linux-arm64`  | `quay.io/pypa/manylinux_2_28_aarch64` container |
+
+Linux builds run inside manylinux containers so the glibc floor is 2.28 (Debian 11+,
+Ubuntu 20.04+, RHEL 8+); the resulting x86_64 binary is verified on `debian:11`,
+`ubuntu:22.04` and `ubuntu:24.04` before anything is published. The tarballs are then
+attached to the release and `packaging/planka-cli.rb.tmpl` is rendered with the four
+checksums and pushed to `voydz/homebrew-tap`.
+
+To cut a release, bump `version` in `pyproject.toml` and publish a `vX.Y.Z` GitHub release.
 
 ### TBD
 
-- Release workflow only builds the macOS binary.
-- Release workflow assumes a GitHub release is already published.
-- No signing/notarization or multi-platform release assets yet.
+- No code signing/notarization of the macOS binaries yet.

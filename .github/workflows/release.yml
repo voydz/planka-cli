@@ -6,51 +6,140 @@ on:
 
 permissions:
   contents: write
-  pull-requests: write
 
 jobs:
-  build-and-bump-tap:
-    runs-on: macos-latest
-    env:
-      HOMEBREW_GITHUB_API_TOKEN: ${{ secrets.HOMEBREW_GITHUB_API_TOKEN }}
+  build:
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.runs-on }}
+    container: ${{ matrix.container }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: macos-arm64
+            runs-on: macos-14
+          - target: macos-x86_64
+            # macos-13 was retired Dec 2025; macos-15-intel is the Intel runner.
+            # Needed so `brew readall --os=all --arch=all` finds a URL for every
+            # os/arch combination the formula declares.
+            runs-on: macos-15-intel
+          - target: linux-x86_64
+            runs-on: ubuntu-latest
+            # PyInstaller binaries only run on hosts with a glibc at least as new
+            # as the build host. manylinux pins the floor to 2.28 (Debian 11+,
+            # Ubuntu 20.04+, RHEL 8+); building on the runner itself would
+            # require glibc 2.39.
+            container: quay.io/pypa/manylinux_2_28_x86_64
+          - target: linux-arm64
+            runs-on: ubuntu-24.04-arm
+            container: quay.io/pypa/manylinux_2_28_aarch64
     steps:
       - uses: actions/checkout@v4
+
       - name: Install uv
         uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
+
       - name: Setup project
         run: |
           uv python install 3.13
           make setup
-      - name: Build binary
-        run: |
-          make build
-      - name: Smoke test binary
-        run: |
-          ./dist/planka-cli --help
-      - name: Package tarball
+
+      - name: Resolve version
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
-          TAR="planka-cli-${VERSION}-macos.tar.gz"
-          tar -czf "$TAR" -C dist planka-cli
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
-          echo "TAR=$TAR" >> "$GITHUB_ENV"
-      - name: Compute sha256
+          PROJECT_VERSION="$(grep '^version' pyproject.toml | head -1 | cut -d'"' -f2)"
+          if [ "$PROJECT_VERSION" != "$VERSION" ]; then
+            echo "::warning::pyproject.toml version ($PROJECT_VERSION) does not match tag ($VERSION); using the tag"
+          fi
+
+      - name: Build and smoke test binary
+        run: make smoke VERSION="$VERSION"
+
+      - name: Package tarball
+        run: make package VERSION="$VERSION"
+
+      # The Linux containers have no gh CLI, so artifacts are handed to the
+      # publish job, which runs directly on the runner.
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: planka-cli-${{ matrix.target }}
+          path: |
+            dist/*.tar.gz
+            dist/*.sha256
+          if-no-files-found: error
+
+  publish:
+    name: Publish release assets and bump tap
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Verify Linux binary runs on older distros
         run: |
-          SHA256=$(shasum -a 256 "$TAR" | awk '{print $1}')
-          echo "SHA256=$SHA256" >> "$GITHUB_ENV"
-      - name: Upload release asset
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#v}"
+          mkdir -p check
+          tar -xzf "artifacts/planka-cli-${VERSION}-linux-x86_64.tar.gz" -C check
+          for image in debian:11 ubuntu:22.04 ubuntu:24.04; do
+            echo "--- $image"
+            docker run --rm -v "$PWD/check:/check:ro" "$image" /check/planka-cli --help >/dev/null
+          done
+
+      - name: Upload release assets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release upload "$GITHUB_REF_NAME" "$TAR" --clobber
-      - name: Bump tap formula
+          ls -l artifacts
+          gh release upload "$GITHUB_REF_NAME" artifacts/*.tar.gz --clobber
+
+      # `brew bump-formula-pr` only understands a formula with a single
+      # url/sha256 pair, so the whole formula is rendered from the template
+      # and committed to the tap directly.
+      - name: Render formula
         run: |
-          URL="https://github.com/voydz/planka-cli/releases/download/${GITHUB_REF_NAME}/${TAR}"
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          brew tap voydz/homebrew-tap
-          brew bump-formula-pr planka-cli \
-            --url "$URL" \
-            --sha256 "$SHA256"
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#v}"
+          sha() { cut -d' ' -f1 "artifacts/planka-cli-${VERSION}-$1.tar.gz.sha256"; }
+          sed \
+            -e "s/@VERSION@/${VERSION}/g" \
+            -e "s/@SHA256_MACOS_ARM64@/$(sha macos-arm64)/" \
+            -e "s/@SHA256_MACOS_X86_64@/$(sha macos-x86_64)/" \
+            -e "s/@SHA256_LINUX_X86_64@/$(sha linux-x86_64)/" \
+            -e "s/@SHA256_LINUX_ARM64@/$(sha linux-arm64)/" \
+            packaging/planka-cli.rb.tmpl > planka-cli.rb
+          if grep -q '@' planka-cli.rb; then
+            echo "::error::unsubstituted placeholders in planka-cli.rb"
+            exit 1
+          fi
+          cat planka-cli.rb
+
+      - name: Push formula to tap
+        env:
+          TAP_TOKEN: ${{ secrets.HOMEBREW_GITHUB_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#v}"
+          git clone --depth 1 \
+            "https://x-access-token:${TAP_TOKEN}@github.com/voydz/homebrew-tap.git" tap
+          cp planka-cli.rb tap/Formula/planka-cli.rb
+          cd tap
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet -- Formula/planka-cli.rb; then
+            echo "Formula already up to date"
+            exit 0
+          fi
+          git add Formula/planka-cli.rb
+          git commit -m "planka-cli ${VERSION}"
+          git push
