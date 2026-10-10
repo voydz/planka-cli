@@ -4,7 +4,7 @@
 [![Homebrew Tap](https://img.shields.io/badge/homebrew-voydz%2Fhomebrew--tap-blue?logo=homebrew)](https://github.com/voydz/homebrew-tap)
 
 Cut through the UI and drive your Planka boards from the terminal. This CLI lets you
-scan work, create cards, and stay on top of notifications with fast, scriptable commands.
+scan work, create cards, add comments, and stay on top of notifications with fast, scriptable commands.
 
 ## Why it exists
 
@@ -78,12 +78,21 @@ planka-cli cards list <LIST_ID>
 planka-cli cards show <CARD_ID>
 
 planka-cli cards create <LIST_ID> "Card title" --description "Details"
+planka-cli cards comment <CARD_ID> --text "Ready for review"
+planka-cli cards comment <CARD_ID> --body-file comment.md
 planka-cli cards update <CARD_ID> --name "New title"
 planka-cli cards delete <CARD_ID>
 
 planka-cli notifications all
 planka-cli notifications unread
 ```
+
+`cards comment` uses the configured login and requires exactly one of `--text` or
+`--body-file`. Files must be UTF-8. Unicode, Markdown, whitespace, and line breaks
+are preserved; empty or whitespace-only comments are rejected. Success prints the
+returned comment ID and target card ID. Errors exit nonzero, and the command never
+automatically retries a comment request. If a timeout or invalid response prevents
+confirmation, check the card before trying again.
 
 ## Maintainers
 
