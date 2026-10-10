@@ -1,6 +1,6 @@
 ---
 name: planka
-description: Manage Planka (Kanban) projects, boards, lists, cards, and notifications via a custom Python CLI.
+description: Manage Planka (Kanban) projects, boards, lists, cards, comments, and notifications via a custom Python CLI.
 metadata: {"clawdbot":{"emoji":"📋","requires":{"bins":["planka-cli"]}}}
 ---
 
@@ -58,6 +58,10 @@ planka-cli cards list <LIST_ID>
 # Show a Card (includes the stored description, attachment URLs, and comment text)
 planka-cli cards show <CARD_ID>
 
+# Add a Comment (choose exactly one input)
+planka-cli cards comment <CARD_ID> --text "Ready for review"
+planka-cli cards comment <CARD_ID> --body-file comment.md
+
 # Create a Card
 planka-cli cards create <LIST_ID> "Card title"
 
@@ -73,6 +77,13 @@ planka-cli cards delete <CARD_ID>
 planka-cli notifications all
 planka-cli notifications unread
 ```
+
+`cards comment` uses the configured login. Supply exactly one of `--text` or
+`--body-file`; files must be UTF-8. Unicode, Markdown, whitespace, and line breaks
+are sent unchanged. Empty or whitespace-only comments are rejected. Success prints
+the returned comment ID and target card ID. Errors exit nonzero; comment requests
+are never automatically retried. If creation cannot be confirmed after a timeout
+or invalid response, check the card before trying again.
 
 ## Examples
 

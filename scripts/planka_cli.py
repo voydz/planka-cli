@@ -8,6 +8,7 @@ from typing import Optional, Union
 
 import click
 import typer
+from httpx import HTTPStatusError
 from plankapy.v2 import Card, Planka
 from rich.console import Console
 from rich.table import Table
@@ -616,6 +617,58 @@ def show_card(card_id: str):
             console.print(comments_table)
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] {e}")
+
+
+@cards_app.command("comment")
+def comment_card(
+    card_id: str = typer.Argument(..., help="Card ID to comment on"),
+    text: Optional[str] = typer.Option(None, "--text", help="Comment text"),
+    body_file: Optional[Path] = typer.Option(
+        None, "--body-file", help="UTF-8 file containing the comment text"
+    ),
+):
+    """Add a comment with exactly one of --text or --body-file.
+
+    Examples:
+        planka-cli cards comment CARD_ID --text "Ready for review"
+        planka-cli cards comment CARD_ID --body-file comment.md
+    """
+    if not card_id.strip():
+        raise typer.BadParameter("Card ID must not be empty.")
+    if (text is None) == (body_file is None):
+        raise typer.BadParameter("Provide exactly one of --text or --body-file.")
+    if body_file is not None:
+        try:
+            text = body_file.read_bytes().decode("utf-8")
+        except (OSError, UnicodeDecodeError) as exc:
+            raise typer.BadParameter(f"Cannot read UTF-8 comment file {body_file}: {exc}") from exc
+    if text is None or not text.strip():
+        raise typer.BadParameter("Comment text must not be empty or whitespace-only.")
+    planka = get_planka()
+    try:
+        comment = planka.endpoints.createComment(card_id, text=text)["item"]
+        if not isinstance(comment, dict):
+            raise ValueError("Invalid comment response.")
+        comment_id = comment.get("id")
+        if (
+            not isinstance(comment_id, str)
+            or not comment_id.strip()
+            or comment.get("cardId") != card_id
+        ):
+            raise ValueError("Invalid comment response: missing or mismatched IDs.")
+    except HTTPStatusError as exc:
+        status = exc.response.status_code
+        message = {
+            401: "Authentication failed",
+            403: "Permission denied",
+            404: f"Card {card_id} not found or unavailable",
+        }.get(status, "Could not create comment")
+        console.print(f"Error: {message} (HTTP {status}).", markup=False)
+        raise typer.Exit(1) from exc
+    except Exception as exc:
+        console.print(f"Error: Could not confirm comment creation: {exc}", markup=False)
+        raise typer.Exit(1) from exc
+    console.print(f"Created comment {comment_id} on card {card_id}", markup=False)
 
 
 @cards_app.command("create")
