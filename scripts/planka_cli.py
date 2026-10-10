@@ -549,7 +549,7 @@ def show_card(card_id: str):
         add_row("ID", card.id)
         add_row("URL", card_url)
         add_row("Name", card.name)
-        add_row("Description", safe_attr(card, "description") or schema.get("description"))
+        add_row("Description", schema.get("description"))
         add_row("Board ID", board_id_value)
         add_row("List", list_display)
         add_row("Position", safe_attr(card, "position") or schema.get("position"))

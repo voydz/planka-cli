@@ -55,7 +55,7 @@ planka-cli lists list <BOARD_ID>
 # List Cards in a List
 planka-cli cards list <LIST_ID>
 
-# Show a Card (includes attachments with URLs and comment text)
+# Show a Card (includes the stored description, attachment URLs, and comment text)
 planka-cli cards show <CARD_ID>
 
 # Create a Card
